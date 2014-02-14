@@ -103,24 +103,9 @@ class StatsDaemon(object):
             self.exit(E_BADADDR % bindaddr)
         self._bindaddr = (host, port)
 
-        # TODO: generalize to support more than one sink type.  currently
-        # only the graphite backend is present, but we may want to write
-        # stats to hbase, redis, etc. - ph
-
-        # construct the sink and add hosts to it
         if not sinkspecs:
             self.exit(E_NOSINKS)
-        self._sink = sink.GraphiteSink()
-        errors = []
-        for spec in sinkspecs:
-            try:
-                self._sink.add(spec)
-            except ValueError, ex:
-                errors.append(ex)
-        if errors:
-            for err in errors:
-                self.error(str(err))
-            self.exit('exiting.')
+        self._sink = sink.SinkManager(sinkspecs)
 
         self._percent = float(percent)
         self._interval = float(interval)
@@ -229,7 +214,8 @@ def main():
     opts.add_option('-b', '--bind', dest='bind_addr', default=':8125',
         help="bind [host]:port (host defaults to '')")
     opts.add_option('-s', '--sink', dest='sink', action='append', default=[],
-        help="a graphite service to which stats are sent ([host]:port).")
+        help="a service to which stats are sent ([[host:]port:]type)."
+        " Supported types are \"graphite\" and \"influxdb\".")
     opts.add_option('-v', dest='verbose', action='count', default=0,
         help="increase verbosity (currently used for debugging)")
     opts.add_option('-f', '--flush', dest='interval', default=INTERVAL,

@@ -7,7 +7,8 @@ import time
 # vendor
 from gevent import socket
 
-E_BADSPEC = "bad sink spec %r: %s"
+E_BADSINKPORT = 'bad sink port: %s\n(should be an integer)'
+E_BADSINKTYPE = 'bad sink type: %s\n(should be one of graphite|influxdb)'
 E_SENDFAIL = 'failed to send stats to %s %s: %s'
 
 
@@ -17,19 +18,26 @@ class Sink(object):
     A resource to which stats will be sent.
     """
 
+    _default_host = 'localhost'
+    _hosts = set()
+
     def error(self, msg):
         sys.stderr.write(msg + '\n')
 
-    def _parse_hostport(self, spec):
+    def add(self, spec):
+        if isinstance(spec, basestring):
+            spec = spec.split(':')
+        port = self._default_port
+        host = self._default_host
         try:
-            parts = spec.split(':')
-            if len(parts) == 2:
-                return (parts[0], int(parts[1]))
-            if len(parts) == 1:
-                return ('', int(parts[0]))
-        except ValueError, ex:
-            raise ValueError(E_BADSPEC % (spec, ex))
-        raise ValueError("expected '[host]:port' but got %r" % spec)
+            port = spec.pop(-1)
+            port = int(port)
+            host = spec.pop(-1)
+        except IndexError:
+            pass  # port and host are optional: keep default values
+        except ValueError:
+            raise ValueError(E_BADSINKPORT % port)
+        self._hosts.add((host, port))
 
 
 class GraphiteSink(Sink):
@@ -38,11 +46,7 @@ class GraphiteSink(Sink):
     Sends stats to one or more Graphite servers.
     """
 
-    def __init__(self):
-        self._hosts = []
-
-    def add(self, spec):
-        self._hosts.append(self._parse_hostport(spec))
+    _default_port = 2003
 
     def send(self, stats):
         "Format stats and send to one or more Graphite hosts"
@@ -106,3 +110,48 @@ class GraphiteSink(Sink):
                 sock.close()
             except Exception, ex:
                 self.error(E_SENDFAIL % ('graphite', host, ex))
+
+
+class InfluxDBSink(Sink):
+
+    """
+    Sends stats to one or more InfluxDB servers.
+    """
+
+    _default_port = 8086
+
+    def send(self, stats):
+        "Format stats and send to one or more InfluxDB hosts"
+        raise NotImplementedError()
+
+
+class SinkManager(object):
+
+    """
+    A manager of sinks to which stats will be sent.
+    """
+
+    # TODO: support more sink types. Currently only graphite and influxdb
+    # backends are supported, but we may want to write stats to hbase, redis...
+    _sink_class_map = {
+        'graphite': GraphiteSink,
+        'influxdb': InfluxDBSink,
+        }
+
+    def __init__(self, sinkspecs):
+        # construct the sink and add hosts to it
+        self._sinks = {}
+        for spec in sinkspecs:
+            spec = spec.split(':')
+            sink_type = spec.pop(-1)
+            try:
+                if sink_type not in self._sinks:
+                    self._sinks[sink_type] = self._sink_class_map[sink_type]()
+                self._sinks[sink_type].add(spec)
+            except KeyError:
+                raise ValueError(E_BADSINKTYPE % sink_type)
+
+    def send(self, stats):
+        "Send stats to one or more services"
+        for sink in self._sinks.itervalues():
+            sink.send(stats)
