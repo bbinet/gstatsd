@@ -117,6 +117,16 @@ class GraphiteSink(Sink):
                 })
             num_stats += 1
 
+        # proxy values stats
+        for key, vals in stats.proxy_values.iteritems():
+            for t, val in vals:
+                buf.write('stats.%(key)s %(val)s %(t)d\n' % {
+                    'key': key,
+                    'val': val,
+                    't': t
+                    })
+            num_stats += len(vals)
+
         buf.write('statsd.numStats %(num_stats)d %(now)d\n' % {
             'num_stats': num_stats,
             'now': now
