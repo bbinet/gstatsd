@@ -31,6 +31,9 @@ class StatsClient(object):
     def gauge(self, key, value, sample_rate=1):
         self._send('%s:%s|g' % (key, _format_float(value)), sample_rate)
 
+    def proxy(self, key, value):
+        self._send('%s:%s|p' % (key, value))
+
     def increment(self, key, sample_rate=1):
         return self.counter(key, 1, sample_rate)
 
@@ -103,6 +106,16 @@ class StatsGauge(object):
         self._client.gauge(self._key, value, self._sample_rate)
 
 
+class StatsProxy(object):
+
+    def __init__(self, client, key):
+        self._client = client
+        self._key = key
+
+    def set(self, value):
+        self._client.proxy(self._key, value)
+
+
 class Stats(object):
 
     def __init__(self, client):
@@ -116,3 +129,6 @@ class Stats(object):
 
     def get_gauge(self, key):
         return StatsGauge(self._client, key)
+
+    def get_proxy(self, key):
+        return StatsProxy(self._client, key)
