@@ -123,7 +123,7 @@ class GraphiteSink(Sink):
                 buf.write('stats.%(key)s %(val)s %(t)d\n' % {
                     'key': key,
                     'val': val,
-                    't': t
+                    't': int(t)
                     })
             num_stats += len(vals)
 
@@ -212,7 +212,7 @@ class InfluxDBSink(Sink):
             body.append({
                 "name": "stats.%s.proxy" % key,
                 "columns": ["time", "value"],
-                "points": [[t, val] for t, val in vals]
+                "points": [[int(t * 1000), val] for t, val in vals]
                 })
 
         if not body:

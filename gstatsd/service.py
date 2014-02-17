@@ -149,7 +149,7 @@ class StatsDaemon(object):
 
     def _process(self, data):
         "Process a single packet and update the internal tables."
-        now = int(time.time() * 1000)
+        now = time.time()
         parts = data.split(':')
         if self._debug:
             self.error('packet: %r' % data)
