@@ -42,6 +42,7 @@ class Stats(object):
         self.timers_stats = defaultdict(dict)
         self.counts = defaultdict(float)
         self.gauges = defaultdict(float)
+        self.proxy_values = defaultdict(list)
         self.percent = None
         self.interval = None
 
@@ -148,6 +149,7 @@ class StatsDaemon(object):
 
     def _process(self, data):
         "Process a single packet and update the internal tables."
+        now = int(time.time() * 1000)
         parts = data.split(':')
         if self._debug:
             self.error('packet: %r' % data)
@@ -172,16 +174,19 @@ class StatsDaemon(object):
                 # timer (milliseconds)
                 if stype == 'ms':
                     stats.timers[key].append(float(value if value else 0))
-
                 # counter with optional sample rate
                 elif stype == 'c':
                     if length == 3 and fields[2].startswith('@'):
                         srate = float(fields[2][1:])
                     value = float(value if value else 1) * (1 / srate)
                     stats.counts[key] += value
+                # gauge
                 elif stype == 'g':
                     value = float(value if value else 1)
                     stats.gauges[key] = value
+                # proxy
+                elif stype == 'p':
+                    stats.proxy_values[key].append((now, value))
 
 
 def main():

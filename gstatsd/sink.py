@@ -197,6 +197,13 @@ class InfluxDBSink(Sink):
                 "columns": ["time", "value"],
                 "points": [[now, val]]
                 })
+        # proxy values stats
+        for key, vals in stats.proxy_values.iteritems():
+            body.append({
+                "name": "stats.%s.proxy" % key,
+                "columns": ["time", "value"],
+                "points": [[t, val] for t, val in vals]
+                })
 
         if not body:
             return
