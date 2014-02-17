@@ -49,6 +49,7 @@ class Stats(object):
 
     def __init__(self):
         self.timers = defaultdict(list)
+        self.timers_stats = defaultdict(dict)
         self.counts = defaultdict(float)
         self.gauges = defaultdict(float)
         self.percent = PERCENT

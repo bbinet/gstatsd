@@ -39,6 +39,28 @@ class Sink(object):
             raise ValueError(E_BADSINKPORT % port)
         self._hosts.add((host, port))
 
+    def _compute_timer_stats(self, vals, percent):
+        "Compute statistics from pending metrics"
+        num = len(vals)
+        vals = sorted(vals)
+        vmin = vals[0]
+        vmax = vals[-1]
+        mean = vmin
+        max_at_thresh = vmax
+        if num > 1:
+            idx = round((percent / 100.0) * num)
+            tmp = vals[:int(idx)]
+            if tmp:
+                max_at_thresh = tmp[-1]
+                mean = sum(tmp) / idx
+        return {
+            'mean': mean,
+            'upper': vmax,
+            'max_at_thresh': max_at_thresh,
+            'lower': vmin,
+            'count': num,
+            }
+
 
 class GraphiteSink(Sink):
 
@@ -48,56 +70,55 @@ class GraphiteSink(Sink):
 
     _default_port = 2003
 
-    def send(self, stats):
+    def send(self, stats, now):
         "Format stats and send to one or more Graphite hosts"
         buf = cStringIO.StringIO()
-        now = int(time.time())
         num_stats = 0
 
         # timer stats
         pct = stats.percent
-        timers = stats.timers
-        for key, vals in timers.iteritems():
+        for key, vals in stats.timers.iteritems():
             if not vals:
                 continue
-
-            # compute statistics
-            num = len(vals)
-            vals = sorted(vals)
-            vmin = vals[0]
-            vmax = vals[-1]
-            mean = vmin
-            max_at_thresh = vmax
-            if num > 1:
-                idx = round((pct / 100.0) * num)
-                tmp = vals[:int(idx)]
-                if tmp:
-                    max_at_thresh = tmp[-1]
-                    mean = sum(tmp) / idx
-
-            key = 'stats.timers.%s' % key
-            buf.write('%s.mean %f %d\n' % (key, mean, now))
-            buf.write('%s.upper %f %d\n' % (key, vmax, now))
-            buf.write('%s.upper_%d %f %d\n' % (key, pct, max_at_thresh, now))
-            buf.write('%s.lower %f %d\n' % (key, vmin, now))
-            buf.write('%s.count %d %d\n' % (key, num, now))
+            if key not in stats.timers_stats:
+                stats.timers_stats[key] = self._compute_timer_stats(vals, pct)
+            values = {
+                'key': 'stats.timers.%s' % key,
+                'now': now,
+                'percent': pct,
+                }
+            values.update(stats.timers_stats[key])
+            buf.write('%(key)s.mean %(mean)f %(now)d\n'
+                      '%(key)s.upper %(upper)f %(now)d\n'
+                      '%(key)s.upper_%(percent)d %(max_at_thresh)f %(now)d\n'
+                      '%(key)s.lower %(lower)f %(now)d\n'
+                      '%(key)s.count %(count)d %(now)d\n' % values)
             num_stats += 1
 
         # counter stats
-        counts = stats.counts
-        for key, val in counts.iteritems():
-            buf.write('stats.%s %f %d\n' % (key, val / stats.interval, now))
-            buf.write('stats_counts.%s %f %d\n' % (key, val, now))
+        for key, val in stats.counts.iteritems():
+            buf.write('stats.%(key)s %(count_interval)f %(now)d\n'
+                      'stats_counts.%(key)s %(count)f %(now)d\n' % {
+                          'key': key,
+                          'count': val,
+                          'count_interval': val / stats.interval,
+                          'now': now
+                          })
             num_stats += 1
 
-        # counter stats
-        gauges = stats.gauges
-        for key, val in gauges.iteritems():
-            buf.write('stats.%s %f %d\n' % (key, val, now))
-            buf.write('stats_counts.%s %f %d\n' % (key, val, now))
+        # gauges stats
+        for key, val in stats.gauges.iteritems():
+            buf.write('stats.%(key)s %(gauge)f %(now)d\n' % {
+                'key': key,
+                'gauge': val,
+                'now': now
+                })
             num_stats += 1
 
-        buf.write('statsd.numStats %d %d\n' % (num_stats, now))
+        buf.write('statsd.numStats %(num_stats)d %(now)d\n' % {
+            'num_stats': num_stats,
+            'now': now
+            })
 
         # TODO: add support for N retries
 
@@ -154,5 +175,7 @@ class SinkManager(object):
 
     def send(self, stats):
         "Send stats to one or more services"
+
+        now = int(time.time())
         for sink in self._sinks.itervalues():
-            sink.send(stats)
+            sink.send(stats, now)
