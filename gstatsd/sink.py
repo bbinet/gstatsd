@@ -3,12 +3,15 @@
 import cStringIO
 import sys
 import time
+import json
+import urllib2
 
 # vendor
 from gevent import socket
 
 E_BADSINKPORT = 'bad sink port: %s\n(should be an integer)'
 E_BADSINKTYPE = 'bad sink type: %s\n(should be one of graphite|influxdb)'
+E_BADSTATUSCODE = 'bad status code: %d\n(expected 200)'
 E_SENDFAIL = 'failed to send stats to %s %s: %s'
 
 
@@ -19,12 +22,11 @@ class Sink(object):
     """
 
     _default_host = 'localhost'
-    _hosts = set()
 
     def error(self, msg):
         sys.stderr.write(msg + '\n')
 
-    def add(self, spec):
+    def _parse_host(self, spec):
         if isinstance(spec, basestring):
             spec = spec.split(':')
         port = self._default_port
@@ -37,7 +39,7 @@ class Sink(object):
             pass  # port and host are optional: keep default values
         except ValueError:
             raise ValueError(E_BADSINKPORT % port)
-        self._hosts.add((host, port))
+        return (host, port)
 
     def _compute_timer_stats(self, vals, percent):
         "Compute statistics from pending metrics"
@@ -69,11 +71,16 @@ class GraphiteSink(Sink):
     """
 
     _default_port = 2003
+    _hosts = set()
+
+    def add(self, spec, arg):
+        self._hosts.add(self._parse_host(spec))
 
     def send(self, stats, now):
         "Format stats and send to one or more Graphite hosts"
         buf = cStringIO.StringIO()
         num_stats = 0
+        now = int(now)  # time precision = second
 
         # timer stats
         pct = stats.percent
@@ -141,10 +148,62 @@ class InfluxDBSink(Sink):
     """
 
     _default_port = 8086
+    _urls = set()
 
-    def send(self, stats):
+    def add(self, spec, arg):
+        db, user, password = arg.split(',')
+        host, port = self._parse_host(spec)
+        self._urls.add(
+            'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=m'
+            .format(host, port, db, user, password))
+
+    def send(self, stats, now):
         "Format stats and send to one or more InfluxDB hosts"
-        raise NotImplementedError()
+        # timer stats
+        now = int(now * 1000)  # time precision = millisecond
+        pct = stats.percent
+        body = []
+        for key, vals in stats.timers.iteritems():
+            if not vals:
+                continue
+            if key not in stats.timers_stats:
+                stats.timers_stats[key] = self._compute_timer_stats(vals, pct)
+            v = stats.timers_stats[key]
+            body.append({
+                "name": "stats.%s.timer" % key,
+                "columns": ["time", "mean", "upper", "upper_%d" % pct,
+                            "lower", "count"],
+                "points": [[now, v['mean'], v['upper'], v['max_at_thresh'],
+                        v['lower'], v['count']]]
+                })
+        # counter stats
+        for key, val in stats.counts.iteritems():
+            body.append({
+                "name": "stats.%s.count" % key,
+                "columns": ["time", "value", "count_interval"],
+                "points": [[now, val, val / stats.interval]]
+                })
+        # gauges stats
+        for key, val in stats.gauges.iteritems():
+            body.append({
+                "name": "stats.%s.gauge" % key,
+                "columns": ["time", "value"],
+                "points": [[now, val]]
+                })
+
+        if not body:
+            return
+        for url in self._urls:
+            # flush stats to influxdb
+            try:
+                req = urllib2.Request(url)
+                req.add_header('Content-Type', 'application/json')
+                resp = urllib2.urlopen(req, json.dumps(body), 3)
+                status = resp.getcode()
+                if status != 200:
+                    raise ValueError(E_BADSTATUSCODE % status)
+            except Exception, ex:
+                self.error(E_SENDFAIL % ('influxdb', url, ex))
 
 
 class SinkManager(object):
@@ -164,18 +223,21 @@ class SinkManager(object):
         # construct the sink and add hosts to it
         self._sinks = {}
         for spec in sinkspecs:
+            arg = None
             spec = spec.split(':')
             sink_type = spec.pop(-1)
+            if sink_type.find(',') > 0:
+                sink_type, arg = sink_type.split(',', 1)
             try:
                 if sink_type not in self._sinks:
                     self._sinks[sink_type] = self._sink_class_map[sink_type]()
-                self._sinks[sink_type].add(spec)
+                self._sinks[sink_type].add(spec, arg)
             except KeyError:
                 raise ValueError(E_BADSINKTYPE % sink_type)
 
     def send(self, stats):
         "Send stats to one or more services"
 
-        now = int(time.time())
+        now = time.time()
         for sink in self._sinks.itervalues():
             sink.send(stats, now)
