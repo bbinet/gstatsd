@@ -215,8 +215,10 @@ def main():
     opts.add_option('-b', '--bind', dest='bind_addr', default=':8125',
         help="bind [host]:port (host defaults to '')")
     opts.add_option('-s', '--sink', dest='sink', action='append', default=[],
-        help="a service to which stats are sent ([[host:]port:]type)."
-        " Supported types are \"graphite\" and \"influxdb\".")
+        help="a service to which stats are sent ([[host:]port:]type[,backend "
+        "options]). Supported types are \"graphite\" and \"influxdb\".\n"
+        "InfluxDB backend needs database, user, and password options, for"
+        " example:\n-s influxdb,mydb,myuser,mypass")
     opts.add_option('-v', dest='verbose', action='count', default=0,
         help="increase verbosity (currently used for debugging)")
     opts.add_option('-f', '--flush', dest='interval', default=INTERVAL,
