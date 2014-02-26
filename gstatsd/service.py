@@ -191,10 +191,7 @@ def main():
         print(parser.format_help())
         sys.exit()
 
-    cfg = StatsConfig()
-    for arg in args:
-        cfg.parse_yml(arg)
-    cfg.parse_options(options)
+    cfg = StatsConfig(*(args + [options]))
 
     if cfg.daemonize:
         daemonize()

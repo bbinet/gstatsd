@@ -16,6 +16,17 @@ class StatsConfig(object):
     threshold = 90
     daemonize = False
 
+    def __init__(self, *args):
+        for arg in args:
+            if isinstance(arg, basestring):
+                self.parse_yml(arg)
+            elif isinstance(arg, dict):
+                self.parse_dict(arg)
+            elif isinstance(arg, optparse.Values):
+                self.parse_options(arg)
+            else:
+                raise Exception('wrong type: %r' % arg)
+
     @classmethod
     def get_optionparser(cls):
         parser = optparse.OptionParser(
