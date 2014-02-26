@@ -1,7 +1,5 @@
 
 # standard
-import cStringIO
-import optparse
 import os
 import resource
 import signal
@@ -12,27 +10,19 @@ import traceback
 from collections import defaultdict
 
 # local
-import sink
-from core import __version__
+from gstatsd.sink import SinkManager
+from gstatsd.config import StatsConfig
 
 # vendor
-import gevent, gevent.socket
+import gevent
+import gevent.socket
 socket = gevent.socket
-# protect stats  
+# protect stats
 from gevent.thread import allocate_lock as Lock
 stats_lock = Lock()
 
 # constants
-INTERVAL = 10.0
-PERCENT = 90.0
 MAX_PACKET = 2048
-
-DESCRIPTION = '''
-A statsd service in Python + gevent.
-'''
-EPILOG = '''
-
-'''
 
 # table to remove invalid characters from keys
 ALL_ASCII = set(chr(c) for c in range(256))
@@ -52,8 +42,8 @@ class Stats(object):
         self.timers_stats = defaultdict(dict)
         self.counts = defaultdict(float)
         self.gauges = defaultdict(float)
-        self.percent = PERCENT
-        self.interval = INTERVAL
+        self.percent = None
+        self.interval = None
 
 
 def daemonize(umask=0027):
@@ -77,43 +67,28 @@ def daemonize(umask=0027):
     gevent.reinit()
 
 
-def parse_addr(text):
-    "Parse a 1- to 3-part address spec."
-    if text:
-        parts = text.split(':')
-        length = len(parts)
-        if length== 3:
-            return parts[0], parts[1], int(parts[2])
-        elif length == 2:
-            return None, parts[0], int(parts[1])
-        elif length == 1:
-            return None, '', int(parts[0])
-    return None, None, None
-
-
 class StatsDaemon(object):
 
     """
     A statsd service implementation in Python + gevent.
     """
 
-    def __init__(self, bindaddr, sinkspecs, interval, percent, debug=0,
-                 key_prefix=''):
-        _, host, port = parse_addr(bindaddr)
-        if port is None:
-            self.exit(E_BADADDR % bindaddr)
-        self._bindaddr = (host, port)
+    def __init__(self, cfg, debug=False):
+        self.load_config(cfg, debug)
 
-        if not sinkspecs:
+    def load_config(self, cfg, debug=False):
+        if not cfg.sinks:
             self.exit(E_NOSINKS)
-        self._sink = sink.SinkManager(sinkspecs)
-
-        self._percent = float(percent)
-        self._interval = float(interval)
+        self._bindaddr = (cfg.host, int(cfg.port))
+        self._sink = SinkManager(cfg.sinks)
+        self._percent = float(cfg.threshold)
+        self._interval = float(cfg.flush_interval)
         self._debug = debug
         self._sock = None
         self._flush_task = None
-        self._key_prefix = key_prefix
+        self._key_prefix = cfg.prefix
+        if self._debug:
+            print cfg.dump_yml()
 
         self._reset_stats()
 
@@ -148,15 +123,15 @@ class StatsDaemon(object):
                 # the stats packet to one or more hosts.
                 try:
                     self._sink.send(stats)
-                except Exception, ex:
+                except Exception:
                     trace = traceback.format_tb(sys.exc_info()[-1])
                     self.error(''.join(trace))
 
         self._flush_task = gevent.spawn(_flush_impl)
 
         # start accepting connections
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
-            socket.IPPROTO_UDP)
+        self._sock = socket.socket(
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._sock.bind(self._bindaddr)
         while 1:
             try:
@@ -210,40 +185,21 @@ class StatsDaemon(object):
 
 
 def main():
-    opts = optparse.OptionParser(description=DESCRIPTION, version=__version__,
-        add_help_option=False)
-    opts.add_option('-b', '--bind', dest='bind_addr', default=':8125',
-        help="bind [host]:port (host defaults to '')")
-    opts.add_option('-s', '--sink', dest='sink', action='append', default=[],
-        help="a service to which stats are sent ([[host:]port:]type[,backend "
-        "options]). Supported types are \"graphite\" and \"influxdb\".\n"
-        "InfluxDB backend needs database, user, and password options, for"
-        " example:\n-s influxdb,mydb,myuser,mypass")
-    opts.add_option('-v', dest='verbose', action='count', default=0,
-        help="increase verbosity (currently used for debugging)")
-    opts.add_option('-f', '--flush', dest='interval', default=INTERVAL,
-        help="flush interval, in seconds (default 10)")
-    opts.add_option('-x', '--prefix', dest='key_prefix', default='',
-        help="key prefix added to all keys (default None)")
-    opts.add_option('-p', '--percent', dest='percent', default=PERCENT,
-        help="percent threshold (default 90)")
-    opts.add_option('-D', '--daemonize', dest='daemonize', action='store_true',
-        help='daemonize the service')
-    opts.add_option('-h', '--help', dest='usage', action='store_true')
-
-    (options, args) = opts.parse_args()
-
+    parser = StatsConfig.get_optionparser()
+    options, args = parser.parse_args()
     if options.usage:
-        # TODO: write epilog. usage is manually output since optparse will
-        # wrap the epilog and we want pre-formatted output. - ph
-        print(opts.format_help())
+        print(parser.format_help())
         sys.exit()
 
-    if options.daemonize:
+    cfg = StatsConfig()
+    for arg in args:
+        cfg.parse_yml(arg)
+    cfg.parse_options(options)
+
+    if cfg.daemonize:
         daemonize()
 
-    sd = StatsDaemon(options.bind_addr, options.sink, options.interval,
-                     options.percent, options.verbose, options.key_prefix)
+    sd = StatsDaemon(cfg)
     sd.start()
 
 

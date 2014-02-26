@@ -26,21 +26,6 @@ class Sink(object):
     def error(self, msg):
         sys.stderr.write(msg + '\n')
 
-    def _parse_host(self, spec):
-        if isinstance(spec, basestring):
-            spec = spec.split(':')
-        port = self._default_port
-        host = self._default_host
-        try:
-            port = spec.pop(-1)
-            port = int(port)
-            host = spec.pop(-1)
-        except IndexError:
-            pass  # port and host are optional: keep default values
-        except ValueError:
-            raise ValueError(E_BADSINKPORT % port)
-        return (host, port)
-
     def _compute_timer_stats(self, vals, percent):
         "Compute statistics from pending metrics"
         num = len(vals)
@@ -75,8 +60,16 @@ class GraphiteSink(Sink):
     def __init__(self):
         self._hosts = set()
 
-    def add(self, spec, arg):
-        self._hosts.add(self._parse_host(spec))
+    def add(self, options):
+        if isinstance(options, tuple):
+            host = options[0] or self._default_host
+            port = options[1] or self._default_port
+        elif isinstance(options, dict):
+            host = options.get('host', self._default_host)
+            port = options.get('port', self._default_port)
+        else:
+            raise Exception('bad sink config object type: %r' % options)
+        self._hosts.add((host, port))
 
     def send(self, stats, now):
         "Format stats and send to one or more Graphite hosts"
@@ -154,9 +147,19 @@ class InfluxDBSink(Sink):
 
     _default_port = 8086
 
-    def add(self, spec, arg):
-        db, user, password = arg.split(',')
-        host, port = self._parse_host(spec)
+    def add(self, options):
+        if isinstance(options, tuple):
+            host = options[0] or self._default_host
+            port = options[1] or self._default_port
+            db, user, password = options[3]
+        elif isinstance(options, dict):
+            host = options.get('host', self._default_host)
+            port = options.get('port', self._default_port)
+            db = options['database']
+            user = options['user']
+            password = options['password']
+        else:
+            raise Exception('bad sink config object type: %r' % options)
         self._urls.add(
             'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=m'
             .format(host, port, db, user, password))
@@ -223,25 +226,43 @@ class SinkManager(object):
         'influxdb': InfluxDBSink,
         }
 
-    def __init__(self, sinkspecs):
+    def _parse_string(self, s):
+        # parse the sink string config (coming from optparse)
+        s = s.split(':')
+        port = None
+        host = None
+        sink_options = s.pop(-1).split(',')
+        sink_type = sink_options.pop(0)
+        try:
+            port = s.pop(-1)
+            port = int(port)
+            host = s.pop(-1)
+        except IndexError:
+            pass  # port and host are optional: keep default values
+        except ValueError:
+            raise ValueError(E_BADSINKPORT % port)
+        return (host, port, sink_type, sink_options)
+
+    def __init__(self, sinks):
         # construct the sink and add hosts to it
         self._sinks = {}
-        for spec in sinkspecs:
-            arg = None
-            spec = spec.split(':')
-            sink_type = spec.pop(-1)
-            if sink_type.find(',') > 0:
-                sink_type, arg = sink_type.split(',', 1)
+        for s in sinks:
+            if isinstance(s, basestring):
+                s = self._parse_string(s)
+                sink_type = s[2]
+            elif isinstance(s, dict):
+                sink_type = s['type']
+            else:
+                raise Exception('bad sink config object type: %r' % s)
             try:
                 if sink_type not in self._sinks:
                     self._sinks[sink_type] = self._sink_class_map[sink_type]()
-                self._sinks[sink_type].add(spec, arg)
+                self._sinks[sink_type].add(s)
             except KeyError:
                 raise ValueError(E_BADSINKTYPE % sink_type)
 
     def send(self, stats):
         "Send stats to one or more services"
-
         now = time.time()
         for sink in self._sinks.itervalues():
             sink.send(stats, now)
