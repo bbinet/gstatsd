@@ -23,7 +23,7 @@ Show gstatsd help:
 
 Options:
 
-    Usage: gstatsd [options]
+    Usage: gstatsd [options] [config files]
     
      A statsd service in Python + gevent.
     
@@ -68,6 +68,30 @@ To send the stats to both graphite and influxdb servers, specify '-s' multiple
 times:
 
     % gstatsd -b :8125 -s stats1:2003:graphite -s stats2:8086:influxdb,mydb,myuser,mypass
+
+You can also pass a yaml configuration file to gstatsd:
+
+    % gstatsd ./config_example.yml
+
+where 'config_example.yml' could be:
+
+    host: localhost
+    port: 8125
+    daemonize: false
+    verbose: false
+    flush: 5
+    prefix: 
+    percent: 90
+    sinks:
+      - host: localhost
+        port: 8086
+        type: influxdb
+        database: gstatsd
+        user: gstatsd
+        password: gstatsd
+      - host: localhost
+        port: 2003
+        type: graphite
 
 
 Using the client
