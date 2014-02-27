@@ -7,7 +7,6 @@ class StatsConfig(object):
     props = ['host', 'port', 'verbose', 'flush_interval', 'prefix',
              'threshold', 'daemonize']
     # default config
-    sinks = []
     host = 'localhost'
     port = 8125
     verbose = False
@@ -17,6 +16,7 @@ class StatsConfig(object):
     daemonize = False
 
     def __init__(self, *args):
+        self.sinks = []
         for arg in args:
             if isinstance(arg, basestring):
                 self.parse_yml(arg)
