@@ -71,7 +71,9 @@ class GraphiteSink(Sink):
     """
 
     _default_port = 2003
-    _hosts = set()
+
+    def __init__(self):
+        self._hosts = set()
 
     def add(self, spec, arg):
         self._hosts.add(self._parse_host(spec))
@@ -147,8 +149,10 @@ class InfluxDBSink(Sink):
     Sends stats to one or more InfluxDB servers.
     """
 
+    def __init__(self):
+        self._urls = set()
+
     _default_port = 8086
-    _urls = set()
 
     def add(self, spec, arg):
         db, user, password = arg.split(',')
