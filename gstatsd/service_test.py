@@ -9,28 +9,31 @@ from gstatsd import service
 class StatsServiceTest(unittest.TestCase):
 
     def setUp(self):
-        args = (':8125', [':2003'], 5, 90, 0)
+        args = (':8125', [':2003:graphite'], 5, 90, 0)
         self.svc = service.StatsDaemon(*args)
         self.stats = self.svc._stats
 
     def test_construct(self):
-        svc = service.StatsDaemon('8125', ['2003'], 5, 90, 0)
+        svc = service.StatsDaemon('8125', ['2003:graphite'], 5, 90, 0)
         stats = svc._stats
         self.assertEquals(svc._bindaddr, ('', 8125))
         self.assertEquals(svc._interval, 5.0)
         self.assertEquals(svc._debug, 0)
         self.assertEquals(stats.percent, 90.0)
-        self.assertEquals(svc._sink._hosts, [('', 2003)])
+        self.assertEquals(
+            svc._sink._sinks['graphite']._hosts, set([('localhost', 2003)]))
 
-        svc = service.StatsDaemon('bar:8125', ['foo:2003'], 5, 90, 1)
+        svc = service.StatsDaemon('bar:8125', ['foo:2003:graphite'], 5, 90, 1)
         self.assertEquals(svc._bindaddr, ('bar', 8125))
-        self.assertEquals(svc._sink._hosts, [('foo', 2003)])
+        self.assertEquals(
+            svc._sink._sinks['graphite']._hosts, set([('foo', 2003)]))
         self.assertEquals(svc._debug, 1)
 
     def test_backend(self):
         service.StatsDaemon._send_foo = lambda self, x, y: None
-        svc = service.StatsDaemon('8125', ['bar:2003'], 5, 90, 0)
-        self.assertEquals(svc._sink._hosts, [('bar', 2003)])
+        svc = service.StatsDaemon('8125', ['bar:2003:graphite'], 5, 90, 0)
+        self.assertEquals(
+            svc._sink._sinks['graphite']._hosts, set([('bar', 2003)]))
 
     def test_counters(self):
         pkt = 'foo:1|c'
@@ -61,7 +64,7 @@ class StatsServiceTest(unittest.TestCase):
         self.assertEquals(self.stats.counts, {'foo.bar': 1})
 
     def test_key_prefix(self):
-        args = (':8125', [':2003'], 5, 90, 0, 'pfx')
+        args = (':8125', [':2003:graphite'], 5, 90, 0, 'pfx')
         svc = service.StatsDaemon(*args)
         pkt = 'foo:1|c'
         svc._process(pkt)
@@ -74,5 +77,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
