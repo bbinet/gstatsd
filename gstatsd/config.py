@@ -31,6 +31,7 @@ class StatsConfig(object):
     def get_optionparser(cls):
         parser = optparse.OptionParser(
             description="A statsd service in Python + gevent.",
+            usage="Usage: gstatsd [options] [config files]",
             version=__version__,
             add_help_option=False)
         parser.add_option(
