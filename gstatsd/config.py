@@ -1,6 +1,19 @@
 import optparse
+import re
 
 from gstatsd.core import __version__
+
+
+class ProxyConfig(object):
+
+    def __init__(self, cfg, statscfg):
+        self.name = cfg['name']
+        self.regex = re.compile('^%s$' % self.name)
+        self.allow = cfg.get('allow', True)
+        self.interval = float(cfg.get('interval', statscfg.flush_interval))
+        self.aggregate = cfg.get('aggregate', 'average')
+        assert self.allow in (True, False)
+        assert self.aggregate in ('average', 'sum', 'min', 'max', 'last')
 
 
 class StatsConfig(object):
@@ -17,6 +30,7 @@ class StatsConfig(object):
 
     def __init__(self, *args):
         self.sinks = []
+        self.proxy = []
         for arg in args:
             if isinstance(arg, basestring):
                 self.parse_yml(arg)
@@ -84,6 +98,8 @@ class StatsConfig(object):
     def parse_dict(self, d):
         if 'sinks' in d:
             self.sinks += d['sinks']
+        if 'proxy' in d:
+            self.proxy = [ProxyConfig(p, self) for p in d['proxy']]
         for prop in self.props:
             val = d.get(prop, None)
             if val is not None:

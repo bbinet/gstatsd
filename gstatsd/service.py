@@ -1,4 +1,3 @@
-
 # standard
 import os
 import resource
@@ -7,6 +6,7 @@ import string
 import sys
 import time
 import traceback
+from bisect import bisect_left
 from collections import defaultdict
 
 # local
@@ -37,14 +37,14 @@ E_NOSINKS = 'you must specify at least one stats sink'
 
 class Stats(object):
 
-    def __init__(self):
+    def __init__(self, interval, percent):
         self.timers = defaultdict(list)
         self.timers_stats = defaultdict(dict)
         self.counts = defaultdict(float)
         self.gauges = defaultdict(float)
-        self.proxy_values = defaultdict(list)
-        self.percent = None
-        self.interval = None
+        self.proxies = defaultdict(list)
+        self.interval = interval
+        self.percent = percent
 
 
 def daemonize(umask=0027):
@@ -75,7 +75,12 @@ class StatsDaemon(object):
     """
 
     def __init__(self, cfg, debug=False):
+        self._stats = None
+        self._sock = None
+        self._flush_task = None
+        self._start_time = None
         self.load_config(cfg, debug)
+        self._proxies = defaultdict(lambda: ([], []))
 
     def load_config(self, cfg, debug=False):
         if not cfg.sinks:
@@ -85,19 +90,56 @@ class StatsDaemon(object):
         self._percent = float(cfg.threshold)
         self._interval = float(cfg.flush_interval)
         self._debug = debug
-        self._sock = None
-        self._flush_task = None
         self._key_prefix = cfg.prefix
+        self._proxycfg = cfg.proxy
+        self._proxycfg_cache = {}
         if self._debug:
             print cfg.dump_yml()
 
-        self._reset_stats()
-
     def _reset_stats(self):
+        now = time.time()
         with stats_lock:
-            self._stats = Stats()
-            self._stats.percent = self._percent
-            self._stats.interval = self._interval
+            stats = self._stats
+            self._stats = Stats(self._interval, self._percent)
+            if not stats:
+                return
+            del_keys = []
+            for key, (times, values) in self._proxies.iteritems():
+                cfg = self._proxycfg_cache[key]
+                i = cfg.interval
+                if i <= 0:
+                    stats.proxies[key] = zip(times, values)
+                    del_keys.append(key)
+                    continue
+                t = self._start_time + \
+                    ((times[0] - self._start_time) // i) * i + i
+                while t <= now:
+                    idx = bisect_left(times, t)
+                    t += i
+                    if idx <= 0:
+                        continue
+                    if cfg.aggregate == 'last':
+                        stats.proxies[key].append((t, values[-1]))
+                        del values[:idx]
+                        del times[:idx]
+                        continue
+                    bucket = values[:idx]
+                    if cfg.aggregate == 'average':
+                        stats.proxies[key].append(
+                            (t, sum(bucket) / len(bucket)))
+                    elif cfg.aggregate == 'sum':
+                        stats.proxies[key].append((t, sum(bucket)))
+                    elif cfg.aggregate == 'min':
+                        stats.proxies[key].append((t, sorted(bucket)[0]))
+                    elif cfg.aggregate == 'max':
+                        stats.proxies[key].append((t, sorted(bucket)[-1]))
+                    del values[:idx]
+                    del times[:idx]
+                if len(times) == 0:
+                    del_keys.append(key)
+            for key in del_keys:
+                del self._proxies[key]
+        return stats
 
     def exit(self, msg, code=1):
         self.error(msg)
@@ -108,6 +150,13 @@ class StatsDaemon(object):
 
     def start(self):
         "Start the service"
+
+        # set start time in microsecs
+        self._start_time = time.time()
+
+        # starts with fresh stats
+        self._reset_stats()
+
         # register signals
         gevent.signal(signal.SIGINT, self._shutdown)
 
@@ -117,8 +166,7 @@ class StatsDaemon(object):
                 gevent.sleep(self._stats.interval)
 
                 # rotate stats
-                stats = self._stats
-                self._reset_stats()
+                stats = self._reset_stats()
 
                 # send the stats to the sink which in turn broadcasts
                 # the stats packet to one or more hosts.
@@ -137,9 +185,10 @@ class StatsDaemon(object):
         while 1:
             try:
                 data, _ = self._sock.recvfrom(MAX_PACKET)
+                now = time.time()
                 for p in data.split('\n'):
                     if p:
-                        self._process(p)
+                        self._process(p, now)
             except Exception, ex:
                 self.error(str(ex))
 
@@ -147,9 +196,8 @@ class StatsDaemon(object):
         "Shutdown the server"
         self.exit("service exiting", code=0)
 
-    def _process(self, data):
+    def _process(self, data, now):
         "Process a single packet and update the internal tables."
-        now = time.time()
         parts = data.split(':')
         if self._debug:
             self.error('packet: %r' % data)
@@ -186,7 +234,23 @@ class StatsDaemon(object):
                     stats.gauges[key] = value
                 # proxy
                 elif stype == 'p':
-                    stats.proxy_values[key].append((now, value))
+                    cfg = self._proxycfg_cache.get(key)
+                    if cfg is None:
+                        cfg = self._get_proxycfg(key)
+                    if cfg:
+                        # if cfg is not allowed (False), just ignore it
+                        self._proxies[key][0].append(now)
+                        self._proxies[key][1].append(float(value))
+
+    def _get_proxycfg(self, key):
+        for cfg in self._proxycfg:
+            if cfg.regex.match(key):
+                if not cfg.allow:
+                    break  # this var is not allowed --> return False
+                self._proxycfg_cache[key] = cfg
+                return cfg
+        self._proxycfg_cache[key] = False
+        return False
 
 
 def main():

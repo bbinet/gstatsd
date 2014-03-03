@@ -117,8 +117,8 @@ class GraphiteSink(Sink):
                 })
             num_stats += 1
 
-        # proxy values stats
-        for key, vals in stats.proxy_values.iteritems():
+        # proxies stats
+        for key, vals in stats.proxies.iteritems():
             for t, val in vals:
                 buf.write('stats.%(key)s %(val)s %(t)d\n' % {
                     'key': key,
@@ -208,7 +208,7 @@ class InfluxDBSink(Sink):
                 "points": [[now, val]]
                 })
         # proxy values stats
-        for key, vals in stats.proxy_values.iteritems():
+        for key, vals in stats.proxies.iteritems():
             body.append({
                 "name": "stats.%s.proxy" % key,
                 "columns": ["time", "value"],
