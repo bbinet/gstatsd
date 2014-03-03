@@ -1,3 +1,30 @@
+gstatsd (0.6+hl~1) wheezy; urgency=low
+
+  * split received data on newlines
+  * fix tests: _process signature has changed
+  * generalize to support more than one sink type backend
+  * free the memory buffer when we're done with it
+  * factor out timer stats computation in a dedicated function
+  * add support for influxdb backend
+  * update optionparser doc for influxdb backend
+  * fix _hosts and _urls attributes should be specfic to the instance
+  * fix failing tests
+  * update readmes
+  * add support for reading options from a yaml config file
+  * update class StatsConfig so that it accepts parameters
+  * fix sinks attribute should be specfic to the instance
+  * fix failing tests
+  * add an example configuration file config_example.yml
+  * add usage for optparse.OptionParser
+  * update readmes to demonstrate the use of yaml configuration files
+  * add support for proxy_values custom type
+  * add support for proxy_values custom type for graphite backend
+  * time precision is different for graphite vs influxdb
+  * add support for proxy value to simple client lib
+  * allow custom configuration for proxies (interval, aggregate)
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Mon, 03 Mar 2014 09:06:45 +0100
+
 gstatsd (0.5) lucid; urgency=low
 
   * Release.
