@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 
-%:
-	dh $@
+export PYBUILD_NAME=enum34
 
+%:
+	dh $@ --with python3 --buildsystem=pybuild
