@@ -2,4 +2,10 @@
 *.egg-info
 .coverage
 build
-
+.pybuild/
+debian/files
+debian/python-gstatsd.debhelper.log
+debian/python-gstatsd.postinst.debhelper
+debian/python-gstatsd.prerm.debhelper
+debian/python-gstatsd.substvars
+debian/python-gstatsd/
