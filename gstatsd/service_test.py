@@ -1,8 +1,6 @@
-
-# standard
+import time
 import unittest
 
-# local
 from gstatsd import service, config
 
 
@@ -15,6 +13,7 @@ class StatsServiceTest(unittest.TestCase):
                 'flush_interval': 5,
                 }),
             False)
+        self.svc._reset_stats()
         self.stats = self.svc._stats
 
     def test_construct(self):
@@ -23,6 +22,7 @@ class StatsServiceTest(unittest.TestCase):
                 'sinks': ['2003:graphite'],
                 }),
             False)
+        svc._reset_stats()
         stats = svc._stats
         self.assertEquals(svc._bindaddr, ('localhost', 8125))
         self.assertEquals(svc._interval, 10.0)
@@ -40,6 +40,7 @@ class StatsServiceTest(unittest.TestCase):
                 'threshold': 80,
                 }),
             True)
+        svc._reset_stats()
         stats = svc._stats
         self.assertEquals(svc._bindaddr, ('bar', 8125))
         self.assertEquals(
@@ -50,30 +51,30 @@ class StatsServiceTest(unittest.TestCase):
 
     def test_counters(self):
         pkt = 'foo:1|c'
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.counts, {'foo': 1})
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.counts, {'foo': 2})
         pkt = 'foo:-1|c'
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.counts, {'foo': 1})
 
     def test_counters_sampled(self):
         pkt = 'foo:1|c|@.5'
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.counts, {'foo': 2})
 
     def test_timers(self):
         pkt = 'foo:20|ms'
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.timers, {'foo': [20.0]})
         pkt = 'foo:10|ms'
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.timers, {'foo': [20.0, 10.0]})
 
     def test_key_sanitize(self):
         pkt = '\t\n#! foo . bar \0 ^:1|c'
-        self.svc._process(pkt)
+        self.svc._process(pkt, time.time())
         self.assertEquals(self.stats.counts, {'foo.bar': 1})
 
     def test_key_prefix(self):
@@ -83,8 +84,9 @@ class StatsServiceTest(unittest.TestCase):
                 'flush_interval': 5,
                 'prefix': 'pfx',
                 }))
+        svc._reset_stats()
         pkt = 'foo:1|c'
-        svc._process(pkt)
+        svc._process(pkt, time.time())
         self.assertEquals(svc._stats.counts, {'pfx.foo': 1})
 
 
