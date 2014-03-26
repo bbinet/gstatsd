@@ -56,6 +56,9 @@ class SinkManager(object):
             elif name == 'influxdb':
                 from gstatsd.influxdbsink import InfluxDBSink
                 self._sinks[name] = InfluxDBSink()
+            elif name == 'file':
+                from gstatsd.filesink import FileSink
+                self._sinks[name] = FileSink()
             else:
                 raise ValueError(E_BADSINKTYPE % name)
         return self._sinks[name]
