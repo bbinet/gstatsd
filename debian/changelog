@@ -1,3 +1,12 @@
+gstatsd (0.6+hl~3) wheezy; urgency=low
+
+  * fix tests
+  * split graphite and influxdb sinks into separate files
+  * move tests to a dedicated 'test' subdirectory
+  * add file sink support
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Thu, 27 Mar 2014 12:27:55 +0100
+
 gstatsd (0.6+hl~2) wheezy; urgency=low
 
   * update debian build system
