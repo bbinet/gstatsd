@@ -1,7 +1,7 @@
 import json
 import urllib2
 
-from gstatsd.sink import Sink, E_SENDFAIL, E_BADSTATUSCODE
+from gstatsd.sink import Sink, E_SENDFAIL, E_BADSTATUSCODE, compute_timer_stats
 
 
 class InfluxDBSink(Sink):
@@ -42,7 +42,7 @@ class InfluxDBSink(Sink):
             if not vals:
                 continue
             if key not in stats.timers_stats:
-                stats.timers_stats[key] = self._compute_timer_stats(vals, pct)
+                stats.timers_stats[key] = compute_timer_stats(vals, pct)
             v = stats.timers_stats[key]
             body.append({
                 "name": "stats.%s.timer" % key,

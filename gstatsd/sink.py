@@ -8,6 +8,29 @@ E_BADSTATUSCODE = 'bad status code: %d\n(expected 200)'
 E_SENDFAIL = 'failed to send stats to %s %s: %s'
 
 
+def compute_timer_stats(self, vals, percent):
+    "Compute statistics from pending metrics"
+    num = len(vals)
+    vals = sorted(vals)
+    vmin = vals[0]
+    vmax = vals[-1]
+    mean = vmin
+    max_at_thresh = vmax
+    if num > 1:
+        idx = round((percent / 100.0) * num)
+        tmp = vals[:int(idx)]
+        if tmp:
+            max_at_thresh = tmp[-1]
+            mean = sum(tmp) / idx
+    return {
+        'mean': mean,
+        'upper': vmax,
+        'max_at_thresh': max_at_thresh,
+        'lower': vmin,
+        'count': num,
+        }
+
+
 class Sink(object):
 
     """
@@ -18,28 +41,6 @@ class Sink(object):
 
     def error(self, msg):
         sys.stderr.write(msg + '\n')
-
-    def _compute_timer_stats(self, vals, percent):
-        "Compute statistics from pending metrics"
-        num = len(vals)
-        vals = sorted(vals)
-        vmin = vals[0]
-        vmax = vals[-1]
-        mean = vmin
-        max_at_thresh = vmax
-        if num > 1:
-            idx = round((percent / 100.0) * num)
-            tmp = vals[:int(idx)]
-            if tmp:
-                max_at_thresh = tmp[-1]
-                mean = sum(tmp) / idx
-        return {
-            'mean': mean,
-            'upper': vmax,
-            'max_at_thresh': max_at_thresh,
-            'lower': vmin,
-            'count': num,
-            }
 
 
 class SinkManager(object):

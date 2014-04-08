@@ -3,7 +3,7 @@ import sys
 import traceback
 import errno
 
-from gstatsd.sink import Sink, E_SENDFAIL
+from gstatsd.sink import Sink, E_SENDFAIL, compute_timer_stats
 
 
 class RotatingFileHandler:
@@ -165,7 +165,7 @@ class FileSink(Sink):
             if not vals:
                 continue
             if key not in stats.timers_stats:
-                stats.timers_stats[key] = self._compute_timer_stats(vals, pct)
+                stats.timers_stats[key] = compute_timer_stats(vals, pct)
             values = {
                 'key': key,
                 'now': now,

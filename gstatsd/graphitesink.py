@@ -2,7 +2,7 @@ import cStringIO
 
 from gevent import socket
 
-from gstatsd.sink import Sink, E_SENDFAIL
+from gstatsd.sink import Sink, E_SENDFAIL, compute_timer_stats
 
 
 class GraphiteSink(Sink):
@@ -39,7 +39,7 @@ class GraphiteSink(Sink):
             if not vals:
                 continue
             if key not in stats.timers_stats:
-                stats.timers_stats[key] = self._compute_timer_stats(vals, pct)
+                stats.timers_stats[key] = compute_timer_stats(vals, pct)
             values = {
                 'key': 'stats.timers.%s' % key,
                 'now': now,
