@@ -15,25 +15,8 @@ class InfluxDBSink(Sink):
 
     _default_port = 8086
 
-    def add(self, options):
-        if isinstance(options, tuple):
-            host = options[0] or self._default_host
-            port = options[1] or self._default_port
-            db, user, password = options[3]
-        elif isinstance(options, dict):
-            host = options.get('host', self._default_host)
-            port = options.get('port', self._default_port)
-            db = options['database']
-            user = options['user']
-            password = options['password']
-        else:
-            raise Exception('bad sink config object type: %r' % options)
-        self._urls.add(
-            'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=u'
-            .format(host, port, db, user, password))
-
-    def send(self, stats, now):
-        "Format stats and send to one or more InfluxDB hosts"
+    @classmethod
+    def encode(cls, stats, now):
         now = int(now * 1000 * 1000)  # time precision = microsecond
         pct = stats.percent
         body = []
@@ -72,15 +55,39 @@ class InfluxDBSink(Sink):
                 "columns": ["time", "value"],
                 "points": [[int(t * 1000 * 1000), val] for t, val in vals]
                 })
+        if body:
+            return json.dumps(body)
 
+    def add(self, options):
+        if isinstance(options, tuple):
+            host = options[0] or self._default_host
+            port = options[1] or self._default_port
+            db, user, password = options[3]
+        elif isinstance(options, dict):
+            host = options.get('host', self._default_host)
+            port = options.get('port', self._default_port)
+            db = options['database']
+            user = options['user']
+            password = options['password']
+        else:
+            raise Exception('bad sink config object type: %r' % options)
+        self._urls.add(
+            'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=u'
+            .format(host, port, db, user, password))
+
+    def send(self, stats, now):
+        "Format stats and send to one or more InfluxDB hosts"
+
+        body = self.__class__.encode(stats, now)
         if not body:
             return
+
         for url in self._urls:
             # flush stats to influxdb
             try:
                 req = urllib2.Request(url)
                 req.add_header('Content-Type', 'application/json')
-                resp = urllib2.urlopen(req, json.dumps(body), 3)
+                resp = urllib2.urlopen(req, body, 3)
                 status = resp.getcode()
                 if status != 200:
                     raise ValueError(E_BADSTATUSCODE % status)
