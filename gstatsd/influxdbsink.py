@@ -29,12 +29,12 @@ class InfluxDBSink(Sink):
         else:
             raise Exception('bad sink config object type: %r' % options)
         self._urls.add(
-            'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=m'
+            'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=u'
             .format(host, port, db, user, password))
 
     def send(self, stats, now):
         "Format stats and send to one or more InfluxDB hosts"
-        now = int(now * 1000)  # time precision = millisecond
+        now = int(now * 1000 * 1000)  # time precision = microsecond
         pct = stats.percent
         body = []
         # timer stats
@@ -70,7 +70,7 @@ class InfluxDBSink(Sink):
             body.append({
                 "name": "stats.%s.proxy" % key,
                 "columns": ["time", "value"],
-                "points": [[int(t * 1000), val] for t, val in vals]
+                "points": [[int(t * 1000 * 1000), val] for t, val in vals]
                 })
 
         if not body:
