@@ -17,7 +17,7 @@ class GraphiteSink(Sink):
         self._hosts = set()
 
     @classmethod
-    def encode(cls, stats, now):
+    def encode(cls, stats, now, numstats=True):
         buf = cStringIO.StringIO()
         num_stats = 0
         now = int(now)  # time precision = second
@@ -72,10 +72,11 @@ class GraphiteSink(Sink):
                     })
             num_stats += len(vals)
 
-        buf.write('statsd.numStats %(num_stats)d %(now)d\n' % {
-            'num_stats': num_stats,
-            'now': now
-            })
+        if numstats:
+            buf.write('statsd.numStats %(num_stats)d %(now)d\n' % {
+                'num_stats': num_stats,
+                'now': now
+                })
 
         out = buf.getvalue()
         buf.close()
