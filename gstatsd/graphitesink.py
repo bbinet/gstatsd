@@ -16,19 +16,8 @@ class GraphiteSink(Sink):
     def __init__(self):
         self._hosts = set()
 
-    def add(self, options):
-        if isinstance(options, tuple):
-            host = options[0] or self._default_host
-            port = options[1] or self._default_port
-        elif isinstance(options, dict):
-            host = options.get('host', self._default_host)
-            port = options.get('port', self._default_port)
-        else:
-            raise Exception('bad sink config object type: %r' % options)
-        self._hosts.add((host, port))
-
-    def send(self, stats, now):
-        "Format stats and send to one or more Graphite hosts"
+    @classmethod
+    def encode(cls, stats, now):
         buf = cStringIO.StringIO()
         num_stats = 0
         now = int(now)  # time precision = second
@@ -47,21 +36,21 @@ class GraphiteSink(Sink):
                 }
             values.update(stats.timers_stats[key])
             buf.write('%(key)s.mean %(mean)f %(now)d\n'
-                      '%(key)s.upper %(upper)f %(now)d\n'
-                      '%(key)s.upper_%(percent)d %(max_at_thresh)f %(now)d\n'
-                      '%(key)s.lower %(lower)f %(now)d\n'
-                      '%(key)s.count %(count)d %(now)d\n' % values)
+                        '%(key)s.upper %(upper)f %(now)d\n'
+                        '%(key)s.upper_%(percent)d %(max_at_thresh)f %(now)d\n'
+                        '%(key)s.lower %(lower)f %(now)d\n'
+                        '%(key)s.count %(count)d %(now)d\n' % values)
             num_stats += 1
 
         # counter stats
         for key, val in stats.counts.iteritems():
             buf.write('stats.%(key)s %(count_interval)f %(now)d\n'
-                      'stats_counts.%(key)s %(count)f %(now)d\n' % {
-                          'key': key,
-                          'count': val,
-                          'count_interval': val / stats.interval,
-                          'now': now
-                          })
+                        'stats_counts.%(key)s %(count)f %(now)d\n' % {
+                            'key': key,
+                            'count': val,
+                            'count_interval': val / stats.interval,
+                            'now': now
+                            })
             num_stats += 1
 
         # gauges stats
@@ -88,6 +77,29 @@ class GraphiteSink(Sink):
             'now': now
             })
 
+        out = buf.getvalue()
+        buf.close()
+        if out:
+            return out
+
+    def add(self, options):
+        if isinstance(options, tuple):
+            host = options[0] or self._default_host
+            port = options[1] or self._default_port
+        elif isinstance(options, dict):
+            host = options.get('host', self._default_host)
+            port = options.get('port', self._default_port)
+        else:
+            raise Exception('bad sink config object type: %r' % options)
+        self._hosts.add((host, port))
+
+    def send(self, stats, now):
+        "Format stats and send to one or more Graphite hosts"
+
+        buf = self.__class__.encode(stats, now)
+        if not buf:
+            return
+
         # TODO: add support for N retries
 
         for host in self._hosts:
@@ -95,8 +107,7 @@ class GraphiteSink(Sink):
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect(host)
-                sock.sendall(buf.getvalue())
+                sock.sendall(buf)
                 sock.close()
             except Exception, ex:
                 self.error(E_SENDFAIL % ('graphite', host, ex))
-        buf.close()
