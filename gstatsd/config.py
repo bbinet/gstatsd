@@ -12,6 +12,7 @@ class ProxyConfig(object):
         self.allow = cfg.get('allow', True)
         self.interval = float(cfg.get('interval', statscfg.flush_interval))
         self.aggregate = cfg.get('aggregate', 'average')
+        self.key = cfg.get('key', 'stats.%(hostname)s.%(name)s')
         assert self.allow in (True, False)
         assert self.aggregate in ('average', 'sum', 'min', 'max', 'last')
 

@@ -51,7 +51,7 @@ class InfluxDBSink(Sink):
         # proxy values stats
         for key, vals in stats.proxies.iteritems():
             body.append({
-                "name": "stats.%s.proxy" % key,
+                "name": "%s" % key,
                 "columns": ["time", "value"],
                 "points": [[int(t * 1000 * 1000), val] for t, val in vals]
                 })

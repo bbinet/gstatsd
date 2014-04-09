@@ -65,7 +65,7 @@ class GraphiteSink(Sink):
         # proxies stats
         for key, vals in stats.proxies.iteritems():
             for t, val in vals:
-                lines.append('stats.%(key)s %(val)s %(t)d\n' % {
+                lines.append('%(key)s %(val)s %(t)d\n' % {
                     'key': key,
                     'val': val,
                     't': int(t)

@@ -23,6 +23,7 @@ stats_lock = Lock()
 
 # constants
 MAX_PACKET = 2048
+HOSTNAME = socket.gethostname()
 
 # table to remove invalid characters from keys
 ALL_ASCII = set(chr(c) for c in range(256))
@@ -106,9 +107,13 @@ class StatsDaemon(object):
             del_keys = []
             for key, (times, values) in self._proxies.iteritems():
                 cfg = self._proxycfg_cache[key]
+                proxykey = cfg.key % {
+                    'name': key,
+                    'hostname': HOSTNAME,
+                    }
                 i = cfg.interval
                 if i <= 0:
-                    stats.proxies[key] = zip(times, values)
+                    stats.proxies[proxykey] = zip(times, values)
                     del_keys.append(key)
                     continue
                 t = self._start_time + \
@@ -119,20 +124,20 @@ class StatsDaemon(object):
                     if idx <= 0:
                         continue
                     if cfg.aggregate == 'last':
-                        stats.proxies[key].append((t, values[-1]))
+                        stats.proxies[proxykey].append((t, values[-1]))
                         del values[:idx]
                         del times[:idx]
                         continue
                     bucket = values[:idx]
                     if cfg.aggregate == 'average':
-                        stats.proxies[key].append(
+                        stats.proxies[proxykey].append(
                             (t, sum(bucket) / len(bucket)))
                     elif cfg.aggregate == 'sum':
-                        stats.proxies[key].append((t, sum(bucket)))
+                        stats.proxies[proxykey].append((t, sum(bucket)))
                     elif cfg.aggregate == 'min':
-                        stats.proxies[key].append((t, sorted(bucket)[0]))
+                        stats.proxies[proxykey].append((t, sorted(bucket)[0]))
                     elif cfg.aggregate == 'max':
-                        stats.proxies[key].append((t, sorted(bucket)[-1]))
+                        stats.proxies[proxykey].append((t, sorted(bucket)[-1]))
                     del values[:idx]
                     del times[:idx]
                 if len(times) == 0:
