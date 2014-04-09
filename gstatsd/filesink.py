@@ -3,7 +3,8 @@ import sys
 import traceback
 import errno
 
-from gstatsd.sink import Sink, E_SENDFAIL, compute_timer_stats
+from gstatsd.sink import Sink, E_SENDFAIL
+from gstatsd.graphitesink import GraphiteSink
 
 
 class RotatingFileHandler:
@@ -158,56 +159,15 @@ class FileSink(Sink):
 
     def send(self, stats, now):
         "Format stats and send to one or more files"
-        pct = stats.percent
-        lines = []
-        # timer stats
-        for key, vals in stats.timers.iteritems():
-            if not vals:
-                continue
-            if key not in stats.timers_stats:
-                stats.timers_stats[key] = compute_timer_stats(vals, pct)
-            values = {
-                'key': key,
-                'now': now,
-                'percent': pct,
-                }
-            values.update(stats.timers_stats[key])
-            lines.append('stats.%(key)s.timer %(now)d %(mean)f %(upper)f '
-                         '%(max_at_thresh)f %(lower)f %(count)d' % values)
 
-        # counter stats
-        for key, val in stats.counts.iteritems():
-            lines.append('stats.%(key)s.count %(now)d %(count)f '
-                         '%(count_interval)f' % {
-                             'key': key,
-                             'count': val,
-                             'count_interval': val / stats.interval,
-                             'now': now
-                             })
-
-        # gauges stats
-        for key, val in stats.gauges.iteritems():
-            lines.append('stats.%(key)s.gauge %(now)d %(gauge)f' % {
-                'key': key,
-                'gauge': val,
-                'now': now
-                })
-
-        # proxies stats
-        for key, vals in stats.proxies.iteritems():
-            for t, val in vals:
-                lines.append('stats.%(key)s.proxy %(t)d %(val)s' % {
-                    'key': key,
-                    'val': val,
-                    't': int(t)
-                    })
-
-        if not lines:
+        # dump data in the graphite format
+        data = GraphiteSink.encode(stats, now)
+        if not data:
             return
 
         for f in self._files:
             # flush stats to file
             try:
-                f.write('\n'.join(lines + ['']))
+                f.write(data)
             except Exception, ex:
                 self.error(E_SENDFAIL % ('file', f.baseFilename, ex))
