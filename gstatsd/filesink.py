@@ -161,7 +161,7 @@ class FileSink(Sink):
         "Format stats and send to one or more files"
 
         # dump data in the graphite format
-        data = GraphiteSink.encode(stats, now)
+        data = GraphiteSink.encode(stats, now, numstats=False)
         if not data:
             return
 
