@@ -138,7 +138,7 @@ class FileSink(Sink):
         self._files = set()
 
     def add(self, options):
-        maxbytes = 512*1024*1024
+        maxbytes = 4*1024*1024  # defaults to 4Mo
         backupcount = 10
         if isinstance(options, tuple):
             opts = options[3]
