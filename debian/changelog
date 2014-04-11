@@ -1,3 +1,18 @@
+gstatsd (0.6+hl~4) wheezy; urgency=low
+
+  * send data to influxdb with microseconds precision
+  * compute_timer_stats is not a method anymore
+  * extract influxdb encoding logic in dedicated classmethod
+  * extract graphite encoding logic in dedicated classmethod
+  * writing numstats is now optional for graphite sink
+  * update graphite sink to remove use of stringio
+  * reuse GraphiteSink.encode method for the file sink
+  * don't write statsd.numStats value when using the file sink
+  * allow proxy key customization
+  * change maxbytes default value to 4 Mo
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Fri, 11 Apr 2014 17:22:05 +0200
+
 gstatsd (0.6+hl~3) wheezy; urgency=low
 
   * fix tests
