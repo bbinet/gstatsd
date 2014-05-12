@@ -95,8 +95,8 @@ class SinkManager(object):
             sink = self._get_or_create_sink(sink_type)
             sink.add(s)
 
-    def send(self, stats):
+    def send(self, stats, numstats=False):
         "Send stats to one or more services"
         now = time.time()
         for sink in self._sinks.itervalues():
-            sink.send(stats, now)
+            sink.send(stats, now, numstats=numstats)

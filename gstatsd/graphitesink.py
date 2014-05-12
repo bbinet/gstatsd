@@ -15,7 +15,7 @@ class GraphiteSink(Sink):
         self._hosts = set()
 
     @classmethod
-    def encode(cls, stats, now, numstats=True):
+    def encode(cls, stats, now, numstats=False):
         now = int(now)  # time precision = second
         num_stats = 0
         lines = []
@@ -92,10 +92,10 @@ class GraphiteSink(Sink):
             raise Exception('bad sink config object type: %r' % options)
         self._hosts.add((host, port))
 
-    def send(self, stats, now):
+    def send(self, stats, now, numstats=False):
         "Format stats and send to one or more Graphite hosts"
 
-        data = self.__class__.encode(stats, now)
+        data = self.__class__.encode(stats, now, numstats=numstats)
         if not data:
             return
 

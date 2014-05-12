@@ -18,3 +18,10 @@ sinks:
   - host: localhost
     port: 2003
     type: graphite
+
+# Uncomment the following if you want to allow any proxy data
+#
+# proxy:
+# 
+#   - name: '.*' # default values
+#     allow: true

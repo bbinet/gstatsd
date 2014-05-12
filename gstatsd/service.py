@@ -91,6 +91,7 @@ class StatsDaemon(object):
         self._percent = float(cfg.threshold)
         self._interval = float(cfg.flush_interval)
         self._debug = debug
+        self._numstats = cfg.numstats
         self._key_prefix = cfg.prefix
         self._proxycfg = cfg.proxy
         self._proxycfg_cache = {}
@@ -176,7 +177,7 @@ class StatsDaemon(object):
                 # send the stats to the sink which in turn broadcasts
                 # the stats packet to one or more hosts.
                 try:
-                    self._sink.send(stats)
+                    self._sink.send(stats, numstats=self._numstats)
                 except Exception:
                     trace = traceback.format_tb(sys.exc_info()[-1])
                     self.error(''.join(trace))

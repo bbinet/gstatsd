@@ -16,8 +16,9 @@ class InfluxDBSink(Sink):
     _default_port = 8086
 
     @classmethod
-    def encode(cls, stats, now):
+    def encode(cls, stats, now, numstats=False):
         now = int(now * 1000 * 1000)  # time precision = microsecond
+        num_stats = 0
         pct = stats.percent
         body = []
         # timer stats
@@ -34,6 +35,7 @@ class InfluxDBSink(Sink):
                 "points": [[now, v['mean'], v['upper'], v['max_at_thresh'],
                         v['lower'], v['count']]]
                 })
+            num_stats += 1
         # counter stats
         for key, val in stats.counts.iteritems():
             body.append({
@@ -41,6 +43,7 @@ class InfluxDBSink(Sink):
                 "columns": ["time", "value", "count_interval"],
                 "points": [[now, val, val / stats.interval]]
                 })
+            num_stats += 1
         # gauges stats
         for key, val in stats.gauges.iteritems():
             body.append({
@@ -48,6 +51,7 @@ class InfluxDBSink(Sink):
                 "columns": ["time", "value"],
                 "points": [[now, val]]
                 })
+            num_stats += 1
         # proxy values stats
         for key, vals in stats.proxies.iteritems():
             body.append({
@@ -55,6 +59,15 @@ class InfluxDBSink(Sink):
                 "columns": ["time", "value"],
                 "points": [[int(t * 1000 * 1000), val] for t, val in vals]
                 })
+            num_stats += len(vals)
+
+        if numstats:
+            body.append({
+                "name": "statsd.numStats",
+                "columns": ["time", "value"],
+                "points": [[now, num_stats]]
+                })
+
         if body:
             return json.dumps(body)
 
@@ -75,10 +88,10 @@ class InfluxDBSink(Sink):
             'http://{0}:{1}/db/{2}/series?u={3}&p={4}&time_precision=u'
             .format(host, port, db, user, password))
 
-    def send(self, stats, now):
+    def send(self, stats, now, numstats=False):
         "Format stats and send to one or more InfluxDB hosts"
 
-        body = self.__class__.encode(stats, now)
+        body = self.__class__.encode(stats, now, numstats=numstats)
         if not body:
             return
 

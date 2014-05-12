@@ -157,11 +157,11 @@ class FileSink(Sink):
         self._files.add(RotatingFileHandler(filename, maxBytes=maxbytes,
                                             backupCount=backupcount))
 
-    def send(self, stats, now):
+    def send(self, stats, now, numstats=False):
         "Format stats and send to one or more files"
 
         # dump data in the graphite format
-        data = GraphiteSink.encode(stats, now, numstats=False)
+        data = GraphiteSink.encode(stats, now, numstats=numstats)
         if not data:
             return
 

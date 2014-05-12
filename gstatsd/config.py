@@ -19,7 +19,7 @@ class ProxyConfig(object):
 
 class StatsConfig(object):
     props = ['host', 'port', 'verbose', 'flush_interval', 'prefix',
-             'threshold', 'daemonize']
+             'threshold', 'daemonize', 'numstats']
     # default config
     host = 'localhost'
     port = 8125
@@ -28,6 +28,7 @@ class StatsConfig(object):
     prefix = None
     threshold = 90
     daemonize = False
+    numstats = False
 
     def __init__(self, *args):
         self.sinks = []
@@ -74,6 +75,9 @@ class StatsConfig(object):
         parser.add_option(
             '-D', '--daemonize', dest='daemonize', action='store_true',
             help='daemonize the service')
+        parser.add_option(
+            '-n', '--numstats', dest='numstats', action='store_true',
+            help='send statsd numstats value to all sinks')
         parser.add_option(
             '-v', '--verbose', dest='verbose', action='count',
             help="increase verbosity (currently used for debugging)")
