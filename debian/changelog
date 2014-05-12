@@ -1,3 +1,9 @@
+gstatsd (0.6+hl~5) wheezy; urgency=low
+
+  * allow to enable/disable statsd numStats value through configuration
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Mon, 12 May 2014 12:37:35 +0200
+
 gstatsd (0.6+hl~4) wheezy; urgency=low
 
   * send data to influxdb with microseconds precision
