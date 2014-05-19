@@ -1,3 +1,9 @@
+gstatsd (0.6+hl~6) wheezy; urgency=low
+
+  * add LastValueFileSink sink
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Mon, 19 May 2014 15:18:52 +0200
+
 gstatsd (0.6+hl~5) wheezy; urgency=low
 
   * allow to enable/disable statsd numStats value through configuration
