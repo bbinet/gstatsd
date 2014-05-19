@@ -60,6 +60,9 @@ class SinkManager(object):
             elif name == 'file':
                 from gstatsd.filesink import FileSink
                 self._sinks[name] = FileSink()
+            elif name == 'lastvaluefile':
+                from gstatsd.lastvaluefilesink import LastValueFileSink
+                self._sinks[name] = LastValueFileSink()
             else:
                 raise ValueError(E_BADSINKTYPE % name)
         return self._sinks[name]
