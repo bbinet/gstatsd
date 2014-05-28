@@ -124,13 +124,12 @@ class StatsDaemon(object):
                     t += i
                     if idx <= 0:
                         continue
-                    if cfg.aggregate == 'last':
-                        stats.proxies[proxykey].append((t, values[-1]))
-                        del values[:idx]
-                        del times[:idx]
-                        continue
                     bucket = values[:idx]
-                    if cfg.aggregate == 'average':
+                    if len(bucket) == 0:
+                        continue
+                    if cfg.aggregate == 'last':
+                        stats.proxies[proxykey].append((t, bucket[-1]))
+                    elif cfg.aggregate == 'average':
                         stats.proxies[proxykey].append(
                             (t, sum(bucket) / len(bucket)))
                     elif cfg.aggregate == 'sum':
