@@ -121,13 +121,11 @@ class StatsDaemon(object):
                     ((times[0] - self._start_time) // i) * i + i
                 while t <= now:
                     idx = bisect_left(times, t)
-                    t += i
                     if idx <= 0:
+                        t += i
                         continue
                     bucket = values[:idx]
                     t_bucket = times[:idx]
-                    if len(bucket) == 0:
-                        continue
                     if cfg.aggregate == 'last':
                         stats.proxies[proxykey].append((t, bucket[-1]))
                     elif cfg.aggregate == 'average':
@@ -157,6 +155,7 @@ class StatsDaemon(object):
 
                     del values[:idx]
                     del times[:idx]
+                    t += i
                 if len(times) == 0:
                     del_keys.append(key)
             for key in del_keys:
