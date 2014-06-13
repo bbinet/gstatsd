@@ -11,6 +11,8 @@ class ProxyConfig(object):
         self.regex = re.compile('^%s$' % self.name)
         self.allow = cfg.get('allow', True)
         self.interval = float(cfg.get('interval', statscfg.flush_interval))
+        self.min_hour = int(cfg.get('min_hour', 0))
+        self.max_hour = int(cfg.get('max_hour', 24))
         self.aggregate = cfg.get('aggregate', 'average')
         self.key = cfg.get('key', 'stats.%(hostname)s.%(name)s')
         assert self.allow in (True, False)

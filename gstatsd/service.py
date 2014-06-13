@@ -124,6 +124,12 @@ class StatsDaemon(object):
                     if idx <= 0:
                         t += i
                         continue
+                    hour = time.gmtime(t).tm_hour
+                    if not (cfg.min_hour <= hour <= cfg.max_hour):
+                        del values[:idx]
+                        del times[:idx]
+                        t += i
+                        continue
                     bucket = values[:idx]
                     t_bucket = times[:idx]
                     if cfg.aggregate == 'last':
