@@ -1,3 +1,11 @@
+gstatsd (0.6+hl~8) wheezy; urgency=low
+
+  * add support for "gust" aggregation
+  * fix bug: t value is wrong (1 interval ahead of time)
+  * add support for filtering proxy with min_hour max_hour
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Fri, 13 Jun 2014 12:30:09 +0200
+
 gstatsd (0.6+hl~7) wheezy; urgency=low
 
   * fix aggregate=last logic
