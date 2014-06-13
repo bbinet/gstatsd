@@ -125,6 +125,7 @@ class StatsDaemon(object):
                     if idx <= 0:
                         continue
                     bucket = values[:idx]
+                    t_bucket = times[:idx]
                     if len(bucket) == 0:
                         continue
                     if cfg.aggregate == 'last':
@@ -138,6 +139,22 @@ class StatsDaemon(object):
                         stats.proxies[proxykey].append((t, sorted(bucket)[0]))
                     elif cfg.aggregate == 'max':
                         stats.proxies[proxykey].append((t, sorted(bucket)[-1]))
+                    elif cfg.aggregate == 'gust':
+                        current_gust = []
+                        gusts = []
+                        t0 = t - i
+                        tgust = t0 + 3
+                        for ix, tx in enumerate(t_bucket):
+                            if tx <= tgust:
+                                current_gust.append(bucket[ix])
+                            else:
+                                if len(current_gust) > 0:
+                                    gusts.append(
+                                        sum(current_gust) / len(current_gust))
+                                del current_gust[:]
+                                tgust += 3
+                        stats.proxies[proxykey].append((t, sorted(gusts)[-1]))
+
                     del values[:idx]
                     del times[:idx]
                 if len(times) == 0:
