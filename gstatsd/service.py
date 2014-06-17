@@ -107,6 +107,8 @@ class StatsDaemon(object):
                 return
             del_keys = []
             for key, (times, values) in self._proxies.iteritems():
+                if not times:
+                    continue
                 cfg = self._proxycfg_cache[key]
                 proxykey = cfg.key % {
                     'name': key,
@@ -266,8 +268,12 @@ class StatsDaemon(object):
                         cfg = self._get_proxycfg(key)
                     if cfg:
                         # if cfg is not allowed (False), just ignore it
-                        self._proxies[key][0].append(now)
-                        self._proxies[key][1].append(float(value))
+                        try:
+                            self._proxies[key][1].append(float(value))
+                            self._proxies[key][0].append(now)
+                        except ValueError:
+                            # ignore values that we can't convert to float
+                            pass
 
     def _get_proxycfg(self, key):
         for cfg in self._proxycfg:
