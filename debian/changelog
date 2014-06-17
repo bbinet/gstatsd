@@ -1,3 +1,9 @@
+gstatsd (0.6+hl~9) wheezy; urgency=low
+
+  * fix float conversion failure causing gevent thread crash
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Tue, 17 Jun 2014 11:18:41 +0200
+
 gstatsd (0.6+hl~8) wheezy; urgency=low
 
   * add support for "gust" aggregation
