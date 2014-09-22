@@ -14,16 +14,17 @@ class ProxyConfig(object):
         self.min_hour = int(cfg.get('min_hour', 0))
         self.max_hour = int(cfg.get('max_hour', 24))
         self.aggregate = cfg.get('aggregate', 'average')
-        self.key = cfg.get('key', 'stats.%(hostname)s.%(name)s')
+        self.key = cfg.get('key', '%(uuid)s.%(hostname)s.%(name)s')
         assert self.allow in (True, False)
         assert self.aggregate in (
             'average', 'sum', 'min', 'max', 'last', 'gust')
 
 
 class StatsConfig(object):
-    props = ['host', 'port', 'verbose', 'flush_interval', 'prefix',
+    props = ['uuid', 'host', 'port', 'verbose', 'flush_interval', 'prefix',
              'threshold', 'daemonize', 'numstats']
     # default config
+    uuid = 'stats'
     host = 'localhost'
     port = 8125
     verbose = False
@@ -69,6 +70,9 @@ class StatsConfig(object):
             '-f', '--flush-interval', dest='flush_interval',
             help="flush interval, in seconds (default %d)"
             % cls.flush_interval)
+        parser.add_option(
+            '-u', '--uuid', dest='uuid',
+            help="uuid for this gstatsd instance (default %r)" % cls.uuid)
         parser.add_option(
             '-x', '--prefix', dest='prefix',
             help="key prefix added to all keys (default %r)" % cls.prefix)

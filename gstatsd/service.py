@@ -87,6 +87,7 @@ class StatsDaemon(object):
     def load_config(self, cfg, debug=False):
         if not cfg.sinks:
             self.exit(E_NOSINKS)
+        self._uuid = cfg.uuid
         self._bindaddr = (cfg.host, int(cfg.port))
         self._sink = SinkManager(cfg.sinks)
         self._percent = float(cfg.threshold)
@@ -112,6 +113,7 @@ class StatsDaemon(object):
                     continue
                 cfg = self._proxycfg_cache[key]
                 proxykey = cfg.key % {
+                    'uuid': self._uuid,
                     'name': key,
                     'hostname': HOSTNAME,
                     }
