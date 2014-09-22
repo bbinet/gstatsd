@@ -12,7 +12,7 @@ Standards-Version: 3.9.5
 
 Package: python-gstatsd
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}, python-gevent
+Depends: ${misc:Depends}, ${python:Depends}, python-gevent, python-yaml
 Description: A statsd service implementation in Python + gevent.
  .
  This is a Python 2 compatible package.
