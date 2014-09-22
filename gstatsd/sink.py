@@ -1,5 +1,6 @@
-import sys
 import time
+
+from gstatsd.utils import mkdir_p
 
 
 E_BADSINKPORT = 'bad sink port: %s\n(should be an integer)'
@@ -40,7 +41,10 @@ class Sink(object):
     _default_host = 'localhost'
 
     def error(self, msg):
-        sys.stderr.write(msg + '\n')
+        if not hasattr(self, 'log'):
+            mkdir_p('/var/log/gstatsd')
+            self.log = open('/var/log/gstatsd/sink.log', 'w')
+        self.log.write(msg + '\n')
 
 
 class SinkManager(object):

@@ -10,6 +10,7 @@ from bisect import bisect_left
 from collections import defaultdict
 
 # local
+from gstatsd.utils import mkdir_p
 from gstatsd.sink import SinkManager
 from gstatsd.config import StatsConfig
 
@@ -175,7 +176,10 @@ class StatsDaemon(object):
         sys.exit(code)
 
     def error(self, msg):
-        sys.stderr.write(msg + '\n')
+        if not hasattr(self, 'log'):
+            mkdir_p('/var/log/gstatsd')
+            self.log = open('/var/log/gstatsd/service.log', 'w')
+        self.log.write(msg + '\n')
 
     def start(self):
         "Start the service"

@@ -5,6 +5,7 @@ import errno
 from datetime import date
 
 from gstatsd.sink import Sink, E_SENDFAIL
+from gstatsd.utils import mkdir_p
 from gstatsd.graphitesink import GraphiteSink
 
 
@@ -51,18 +52,11 @@ class RotatingFileHandler:
             self.baseDir = filename
             self.baseFilename = \
                 os.path.join(self.baseDir, self.today.strftime("%Y/%m/%d.log"))
-        self.mkdir_p()
+        mkdir_p(os.path.dirname(self.baseFilename))
         self.stream = open(self.baseFilename, mode)
         self.mode = mode
         self.maxBytes = maxBytes
         self.backupCount = backupCount
-
-    def mkdir_p(self):
-        try:
-            os.makedirs(os.path.dirname(self.baseFilename))
-        except OSError, e:
-            if e.errno != errno.EEXIST:
-                raise
 
     def flush(self):
         try:
@@ -86,7 +80,7 @@ class RotatingFileHandler:
 
     def reopen(self):
         self.close()
-        self.mkdir_p()
+        mkdir_p(os.path.dirname(self.baseFilename))
         self.stream = open(self.baseFilename, self.mode)
 
     def remove(self):
@@ -139,7 +133,7 @@ class RotatingFileHandler:
             self.today = today
             self.baseFilename = \
                 os.path.join(self.baseDir, self.today.strftime("%Y/%m/%d.log"))
-            self.mkdir_p()
+            mkdir_p(os.path.dirname(self.baseFilename))
             self.stream = open(self.baseFilename, self.mode)
 
         if self.maxBytes <= 0:
@@ -157,7 +151,7 @@ class RotatingFileHandler:
                     self.removeAndRename(sfn, dfn)
             dfn = self.baseFilename + ".1"
             self.removeAndRename(self.baseFilename, dfn)
-        self.mkdir_p()
+        mkdir_p(os.path.dirname(self.baseFilename))
         self.stream = open(self.baseFilename, 'w')
 
 
