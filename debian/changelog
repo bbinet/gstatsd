@@ -1,3 +1,9 @@
+gstatsd (0.6+hl~12) wheezy; urgency=low
+
+  * add support for using a uuid in the proxy keys
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Mon, 22 Sep 2014 16:56:16 +0200
+
 gstatsd (0.6+hl~11) wheezy; urgency=low
 
   * add python-yaml as a dependency for gstatsd
