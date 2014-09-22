@@ -2,6 +2,7 @@ import os
 import sys
 import traceback
 import errno
+from datetime import date
 
 from gstatsd.sink import Sink, E_SENDFAIL
 from gstatsd.graphitesink import GraphiteSink
@@ -13,7 +14,7 @@ class RotatingFileHandler:
     # copied. See the original source at:
     # http://github.com/Supervisor/supervisor/blob/master/supervisor/loggers.py
     def __init__(self, filename, mode='a', maxBytes=512*1024*1024,
-                 backupCount=10):
+                 backupCount=10, dateRotation=False):
         """
         Open the specified file and use it as the stream for logging.
 
@@ -33,14 +34,35 @@ class RotatingFileHandler:
         respectively.
 
         If maxBytes is zero, rollover never occurs.
+
+        If dateRotation is True, the filename is a directory in which files
+        of the following pattern will be created:
+            <filename>/<year>/<month>/<day>.log
+        So for example:
+            /var/log/gstatsd/2014/09/29.log
+            /var/log/gstatsd/2014/09/29.log.1
         """
         if maxBytes > 0:
             mode = 'a'  # doesn't make sense otherwise!
-        self.stream = open(filename, mode)
         self.baseFilename = filename
+        self.dateRotation = dateRotation
+        if self.dateRotation:
+            self.today = date.today()
+            self.baseDir = filename
+            self.baseFilename = \
+                os.path.join(self.baseDir, self.today.strftime("%Y/%m/%d.log"))
+        self.mkdir_p()
+        self.stream = open(self.baseFilename, mode)
         self.mode = mode
         self.maxBytes = maxBytes
         self.backupCount = backupCount
+
+    def mkdir_p(self):
+        try:
+            os.makedirs(os.path.dirname(self.baseFilename))
+        except OSError, e:
+            if e.errno != errno.EEXIST:
+                raise
 
     def flush(self):
         try:
@@ -64,6 +86,7 @@ class RotatingFileHandler:
 
     def reopen(self):
         self.close()
+        self.mkdir_p()
         self.stream = open(self.baseFilename, self.mode)
 
     def remove(self):
@@ -80,6 +103,7 @@ class RotatingFileHandler:
         Output the message to the file, catering for rollover as described
         in doRollover().
         """
+        self.doRollover()
         try:
             try:
                 self.stream.write(msg)
@@ -88,7 +112,6 @@ class RotatingFileHandler:
             self.flush()
         except:
             self.handleError()
-        self.doRollover()
 
     def removeAndRename(self, sfn, dfn):
         if os.path.exists(dfn):
@@ -110,6 +133,15 @@ class RotatingFileHandler:
         """
         Do a rollover, as described in __init__().
         """
+        today = date.today()
+        if self.dateRotation and today != self.today:
+            self.stream.close()
+            self.today = today
+            self.baseFilename = \
+                os.path.join(self.baseDir, self.today.strftime("%Y/%m/%d.log"))
+            self.mkdir_p()
+            self.stream = open(self.baseFilename, self.mode)
+
         if self.maxBytes <= 0:
             return
 
@@ -125,6 +157,7 @@ class RotatingFileHandler:
                     self.removeAndRename(sfn, dfn)
             dfn = self.baseFilename + ".1"
             self.removeAndRename(self.baseFilename, dfn)
+        self.mkdir_p()
         self.stream = open(self.baseFilename, 'w')
 
 
@@ -138,24 +171,28 @@ class FileSink(Sink):
         self._files = set()
 
     def add(self, options):
+        daterotation = False
         maxbytes = 4*1024*1024  # defaults to 4Mo
         backupcount = 10
         if isinstance(options, tuple):
             opts = options[3]
             filename = opts[0]
             try:
-                maxbytes = opts[1]
-                backupcount = opts[2]
+                daterotation = opts[1]
+                maxbytes = opts[2]
+                backupcount = opts[3]
             except IndexError:
-                pass  # maxbytes is optional
+                pass  # daterotation, maxbytes are optional
         elif isinstance(options, dict):
             filename = options['filename']
+            daterotation = options.get('daterotation', daterotation)
             maxbytes = options.get('maxbytes', maxbytes)
             backupcount = options.get('backupcount', backupcount)
         else:
             raise Exception('bad sink config object type: %r' % options)
-        self._files.add(RotatingFileHandler(filename, maxBytes=maxbytes,
-                                            backupCount=backupcount))
+        self._files.add(RotatingFileHandler(
+            filename, dateRotation=daterotation, maxBytes=maxbytes,
+            backupCount=backupcount))
 
     def send(self, stats, now, numstats=False):
         "Format stats and send to one or more files"
