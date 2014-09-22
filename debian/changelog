@@ -1,3 +1,9 @@
+gstatsd (0.6+hl~11) wheezy; urgency=low
+
+  * add python-yaml as a dependency for gstatsd
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Mon, 22 Sep 2014 15:00:35 +0200
+
 gstatsd (0.6+hl~10) wheezy; urgency=low
 
   * add support for date based rotation
