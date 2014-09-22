@@ -1,3 +1,10 @@
+gstatsd (0.6+hl~10) wheezy; urgency=low
+
+  * add support for date based rotation
+  * quick&dirty error logging in /var/log/gstatsd/
+
+ -- Bruno Binet <bruno.binet@gmail.com>  Mon, 22 Sep 2014 14:07:05 +0200
+
 gstatsd (0.6+hl~9) wheezy; urgency=low
 
   * fix float conversion failure causing gevent thread crash
